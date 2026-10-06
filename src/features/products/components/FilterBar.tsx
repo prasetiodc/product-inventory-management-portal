@@ -50,7 +50,7 @@ export function FilterBar({
         {/* Search input with left magnifying glass icon */}
         <div className="flex-1 min-w-60">
           <Input
-            placeholder="Cari produk berdasarkan nama..."
+            placeholder="Cari produk berdasarkan nama atau deskripsi..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
             leftIcon={

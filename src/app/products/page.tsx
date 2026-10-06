@@ -1,9 +1,12 @@
-import { STATIC_PRODUCTS, STATIC_CATEGORIES } from "@/mocks/staticProducts";
+import { Suspense } from "react";
+import StoreProvider from "@/store/StoreProvider";
+import { parseFilters } from "@/lib/url/filtersUrl";
 import { ProductsClientWrapper } from "./ProductsClientWrapper";
+import ProductsLoading from "./loading";
 
 export const metadata = {
   title: "Daftar Produk | Product & Inventory Portal",
-  description: "Kelola inventori, pantau stok, dan ubah data produk.",
+  description: "Kelola inventori, pantau stok, dan ubah data produk secara langsung.",
 };
 
 interface ProductsPageProps {
@@ -11,16 +14,18 @@ interface ProductsPageProps {
 }
 
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
-  await searchParams;
+  const resolvedSearchParams = await searchParams;
+  const initialFilters = parseFilters(resolvedSearchParams);
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        <ProductsClientWrapper
-          initialProducts={STATIC_PRODUCTS}
-          categories={STATIC_CATEGORIES}
-        />
+    <StoreProvider preloadedState={{ filters: initialFilters }}>
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <Suspense fallback={<ProductsLoading />}>
+            <ProductsClientWrapper />
+          </Suspense>
+        </div>
       </div>
-    </div>
+    </StoreProvider>
   );
 }

@@ -1,6 +1,57 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { Category, Product, ProductsResponse } from "@/types";
 
+export type GetProductsQueryParams = {
+  limit?: number;
+  skip?: number;
+  sortBy?: string;
+  order?: "asc" | "desc";
+  category?: string;
+  search?: string;
+};
+
+export function resolveProductsQuery(params: GetProductsQueryParams) {
+  const trimmedSearch = params.search?.trim();
+  const trimmedCategory = params.category?.trim();
+  const hasSearch = Boolean(trimmedSearch);
+  const hasCategory = Boolean(trimmedCategory);
+  const baseParams = {
+    limit: params.limit,
+    skip: params.skip,
+    sortBy: params.sortBy,
+    order: params.order,
+  };
+
+  if (hasSearch && hasCategory) {
+    return {
+      url: "/products",
+      params: baseParams,
+    };
+  }
+
+  if (hasSearch) {
+    return {
+      url: "/products/search",
+      params: {
+        q: trimmedSearch,
+        ...baseParams,
+      },
+    };
+  }
+
+  if (hasCategory) {
+    return {
+      url: `/products/category/${encodeURIComponent(trimmedCategory || '')}`,
+      params: baseParams,
+    };
+  }
+
+  return {
+    url: "/products",
+    params: baseParams,
+  };
+}
+
 export const productsApi = createApi({
   reducerPath: "productsApi",
   baseQuery: fetchBaseQuery({
@@ -16,51 +67,8 @@ export const productsApi = createApi({
       query: (id) => `/products/${id}`,
       providesTags: (_result, _error, id) => [{ type: "Product", id }],
     }),
-    getProducts: builder.query<
-      ProductsResponse,
-      {
-        limit?: number;
-        skip?: number;
-        sortBy?: string;
-        order?: "asc" | "desc";
-        category?: string;
-        search?: string;
-      }
-    >({
-      query: (params) => {
-        if (params.search) {
-          return {
-            url: "/products/search",
-            params: {
-              q: params.search,
-              limit: params.limit,
-              skip: params.skip,
-              sortBy: params.sortBy,
-              order: params.order,
-            },
-          };
-        }
-        if (params.category) {
-          return {
-            url: `/products/category/${encodeURIComponent(params.category)}`,
-            params: {
-              limit: params.limit,
-              skip: params.skip,
-              sortBy: params.sortBy,
-              order: params.order,
-            },
-          };
-        }
-        return {
-          url: "/products",
-          params: {
-            limit: params.limit,
-            skip: params.skip,
-            sortBy: params.sortBy,
-            order: params.order,
-          },
-        };
-      },
+    getProducts: builder.query<ProductsResponse, GetProductsQueryParams>({
+      query: (params) => resolveProductsQuery(params),
       providesTags: ["Products"],
     }),
   }),

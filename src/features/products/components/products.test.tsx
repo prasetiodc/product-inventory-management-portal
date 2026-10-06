@@ -1,12 +1,70 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ProductTable } from "./ProductTable";
 import { ProductCard } from "./ProductCard";
 import { FilterBar } from "./FilterBar";
+import { ProductsView } from "./ProductsView";
 import { STATIC_PRODUCTS, STATIC_CATEGORIES } from "@/mocks/staticProducts";
+
+const mockSetSearch = vi.fn();
+
+vi.mock("../hooks", () => ({
+  useProductFilters: () => ({
+    search: "",
+    category: "",
+    sort: "title_asc" as const,
+    page: 1,
+    setSearch: mockSetSearch,
+    setCategory: vi.fn(),
+    setSort: vi.fn(),
+    setPage: vi.fn(),
+    resetFilters: vi.fn(),
+    isFilterActive: false,
+  }),
+  useSyncFiltersToUrl: vi.fn(),
+  useProductsList: () => ({
+    products: [],
+    totalItems: 0,
+    totalPages: 1,
+    itemsPerPage: 10,
+    isLoading: false,
+    isFetching: false,
+    isError: false,
+    refetch: vi.fn(),
+    categories: [],
+  }),
+}));
 
 describe("Products Feature Components", () => {
   const sampleProducts = STATIC_PRODUCTS.slice(0, 3);
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    mockSetSearch.mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("does not trigger render-phase state updates while syncing the debounced search", () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(<ProductsView />);
+
+    fireEvent.change(screen.getByPlaceholderText("Cari produk berdasarkan nama atau deskripsi..."), {
+      target: { value: "phone" },
+    });
+
+    vi.advanceTimersByTime(300);
+
+    expect(mockSetSearch).toHaveBeenCalledWith("phone");
+    expect(consoleErrorSpy.mock.calls.flat(Infinity).join(" ")).not.toContain(
+      "Cannot update a component"
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
 
   describe("ProductTable", () => {
     it("renders products table with titles and brands", () => {
@@ -102,29 +160,31 @@ describe("Products Feature Components", () => {
       );
 
       const searchInput = screen.getByPlaceholderText(
-        "Cari produk berdasarkan nama..."
+        "Cari produk berdasarkan nama atau deskripsi..."
       );
       fireEvent.change(searchInput, { target: { value: "phone" } });
       expect(handleSearch).toHaveBeenCalledWith("phone");
     });
 
-    it("handles view mode change to card", () => {
-      const handleViewChange = vi.fn();
+    it("handles reset filter click when filters are active", () => {
+      const handleReset = vi.fn();
       render(
         <FilterBar
-          search=""
+          search="phone"
           onSearchChange={vi.fn()}
-          category=""
+          category="smartphones"
           onCategoryChange={vi.fn()}
           categories={STATIC_CATEGORIES}
-          sort="title_asc"
+          sort="price_desc"
           onSortChange={vi.fn()}
+          isFilterActive={true}
+          onResetFilters={handleReset}
         />
       );
 
-      const cardBtn = screen.getByLabelText("Tampilan Kartu");
-      fireEvent.click(cardBtn);
-      expect(handleViewChange).toHaveBeenCalledWith("card");
+      const resetBtn = screen.getByText("Reset");
+      fireEvent.click(resetBtn);
+      expect(handleReset).toHaveBeenCalled();
     });
   });
 });

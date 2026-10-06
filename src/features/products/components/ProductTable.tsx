@@ -141,7 +141,7 @@ export function ProductTable({
                 </td>
 
                 {/* Stock */}
-                <td className="px-4 py-3">{getStockBadge(product.stock)}</td>
+                <td className="px-4 py-3 text-center">{getStockBadge(product.stock)}</td>
 
                 {/* Rating */}
                 <td className="px-4 py-3">
