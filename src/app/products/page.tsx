@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import StoreProvider from "@/store/StoreProvider";
 import { parseFilters } from "@/lib/url/filtersUrl";
-import { ProductsClientWrapper } from "./ProductsClientWrapper";
 import ProductsLoading from "./loading";
+import { ProductsView } from "@/features/products/components";
 
 export const metadata = {
   title: "Daftar Produk | Product & Inventory Portal",
@@ -22,7 +22,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <Suspense fallback={<ProductsLoading />}>
-            <ProductsClientWrapper />
+            <ProductsView />
           </Suspense>
         </div>
       </div>
