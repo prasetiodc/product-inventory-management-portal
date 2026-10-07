@@ -1,7 +1,5 @@
 import { Button, Drawer, Select } from '@/components/ui';
-import React from 'react'
-import { setPage } from '../filtersSlice';
-import { ProductSortOption } from '@/types/product';
+import { ProductSortOption } from '@/types';
 
 interface FilterDrawerProps {
   isMobileFilterOpen: boolean;
@@ -34,10 +32,7 @@ function FilterDrawer({
         <Select
           label="Kategori"
           value={category}
-          onChange={(e) => {
-            setCategory(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => setCategory(e.target.value)}
           options={[
             { value: "", label: "Semua Kategori" },
             ...categories.map((c) => ({ value: c.slug, label: c.name })),
@@ -47,10 +42,7 @@ function FilterDrawer({
         <Select
           label="Urutan (Sort)"
           value={sort}
-          onChange={(e) => {
-            setSort(e.target.value as ProductSortOption);
-            setPage(1);
-          }}
+          onChange={(e) => setSort(e.target.value as ProductSortOption)}
           options={[
             { value: "title_asc", label: "Nama (A - Z)" },
             { value: "title_desc", label: "Nama (Z - A)" },

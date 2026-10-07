@@ -7,12 +7,13 @@ import {
   setCategory as setCategoryAction,
   setSort as setSortAction,
   setPage as setPageAction,
+  setView as setViewAction,
   resetFilters as resetFiltersAction,
   filtersHydrated as filtersHydratedAction,
   FiltersState,
   initialFiltersState,
 } from "../filtersSlice";
-import { ProductSortOption } from "@/types";
+import { ProductSortOption, ProductViewMode } from "@/types";
 
 export function useProductFilters() {
   const dispatch = useAppDispatch();
@@ -32,6 +33,10 @@ export function useProductFilters() {
 
   const setPage = useCallback((value: number) => {
     dispatch(setPageAction(value));
+  }, [dispatch]);
+
+  const setView = useCallback((value: ProductViewMode) => {
+    dispatch(setViewAction(value));
   }, [dispatch]);
 
   const resetFilters = useCallback(() => {
@@ -55,6 +60,7 @@ export function useProductFilters() {
     setCategory,
     setSort,
     setPage,
+    setView,
     resetFilters,
     hydrateFilters,
     isFilterActive,

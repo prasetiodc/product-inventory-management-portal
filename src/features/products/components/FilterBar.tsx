@@ -1,7 +1,8 @@
 "use client";
 
-import { Category, ProductSortOption } from "@/types";
+import { Category, ProductSortOption, ProductViewMode } from "@/types";
 import { Button, Input, Select } from "@/components/ui";
+import { LayoutGrid, Table2 } from "lucide-react";
 
 export interface FilterBarProps {
   search: string;
@@ -11,6 +12,8 @@ export interface FilterBarProps {
   categories: Category[];
   sort: ProductSortOption;
   onSortChange: (value: ProductSortOption) => void;
+  view: ProductViewMode;
+  onViewChange: (value: ProductViewMode) => void;
   onOpenMobileFilter?: () => void;
   isFilterActive?: boolean;
   onResetFilters?: () => void;
@@ -24,6 +27,8 @@ export function FilterBar({
   categories,
   sort,
   onSortChange,
+  view,
+  onViewChange,
   onOpenMobileFilter,
   isFilterActive = false,
   onResetFilters,
@@ -114,7 +119,7 @@ export function FilterBar({
           </div>
         </div>
 
-        {/* Mobile Filter & Reset Filters button */}
+        {/* View mode, mobile filters, and reset */}
         <div className="flex items-center justify-between md:justify-end gap-2">
           {/* Mobile Filter Button */}
           <div className="md:hidden flex-1">
@@ -141,6 +146,39 @@ export function FilterBar({
                 <span>Filter {category ? `(1)` : ""}</span>
               </div>
             </Button>
+          </div>
+
+          <div
+            role="group"
+            aria-label="Tampilan daftar produk"
+            className="inline-flex shrink-0 items-center rounded-lg border border-zinc-200 bg-zinc-100/80 p-0.5 dark:border-zinc-700 dark:bg-zinc-800"
+          >
+            <button
+              type="button"
+              aria-label="Tampilan tabel"
+              aria-pressed={view === "table"}
+              onClick={() => onViewChange("table")}
+              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                view === "table"
+                  ? "bg-white text-blue-700 shadow-sm dark:bg-zinc-700 dark:text-blue-300"
+                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+              }`}
+            >
+              <Table2 aria-hidden="true" className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Tampilan kartu"
+              aria-pressed={view === "card"}
+              onClick={() => onViewChange("card")}
+              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                view === "card"
+                  ? "bg-white text-blue-700 shadow-sm dark:bg-zinc-700 dark:text-blue-300"
+                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+              }`}
+            >
+              <LayoutGrid aria-hidden="true" className="h-4 w-4" />
+            </button>
           </div>
 
           {/* Reset Filters button if filter active */}

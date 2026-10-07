@@ -4,9 +4,11 @@ import { ProductTable } from "./ProductTable";
 import { ProductCard } from "./ProductCard";
 import { FilterBar } from "./FilterBar";
 import { ProductsView } from "./ProductsView";
+import EditProductModal from "./EditProductModal";
 import { STATIC_PRODUCTS, STATIC_CATEGORIES } from "@/mocks/staticProducts";
 
 const mockSetSearch = vi.fn();
+const mockUpdateProduct = vi.fn();
 
 vi.mock("../hooks", () => ({
   useProductFilters: () => ({
@@ -14,10 +16,12 @@ vi.mock("../hooks", () => ({
     category: "",
     sort: "title_asc" as const,
     page: 1,
+    view: "table" as const,
     setSearch: mockSetSearch,
     setCategory: vi.fn(),
     setSort: vi.fn(),
     setPage: vi.fn(),
+    setView: vi.fn(),
     resetFilters: vi.fn(),
     isFilterActive: false,
   }),
@@ -33,6 +37,14 @@ vi.mock("../hooks", () => ({
     refetch: vi.fn(),
     categories: [],
   }),
+  useDeleteProductOptimistic: () => ({
+    deleteProduct: vi.fn(),
+    ToastEl: null,
+  }),
+  useUpdateProductOptimistic: () => ({
+    updateProduct: mockUpdateProduct,
+    ToastEl: null,
+  }),
 }));
 
 describe("Products Feature Components", () => {
@@ -41,6 +53,7 @@ describe("Products Feature Components", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     mockSetSearch.mockClear();
+    mockUpdateProduct.mockClear();
   });
 
   afterEach(() => {
@@ -64,6 +77,30 @@ describe("Products Feature Components", () => {
     );
 
     consoleErrorSpy.mockRestore();
+  });
+
+  it("submits original and edited product values from the edit modal", () => {
+    const product = sampleProducts[0];
+    const setEditingProduct = vi.fn();
+
+    render(
+      <EditProductModal
+        editingProduct={product}
+        setEditingProduct={setEditingProduct}
+        editForm={{ title: "Updated product", price: 321, stock: 7 }}
+        setEditForm={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Simpan" }));
+
+    expect(mockUpdateProduct).toHaveBeenCalledWith(product, {
+      ...product,
+      title: "Updated product",
+      price: 321,
+      stock: 7,
+    });
+    expect(setEditingProduct).toHaveBeenCalledWith(null);
   });
 
   describe("ProductTable", () => {
@@ -156,6 +193,8 @@ describe("Products Feature Components", () => {
           categories={STATIC_CATEGORIES}
           sort="title_asc"
           onSortChange={vi.fn()}
+          view="table"
+          onViewChange={vi.fn()}
         />
       );
 
@@ -177,6 +216,8 @@ describe("Products Feature Components", () => {
           categories={STATIC_CATEGORIES}
           sort="price_desc"
           onSortChange={vi.fn()}
+          view="table"
+          onViewChange={vi.fn()}
           isFilterActive={true}
           onResetFilters={handleReset}
         />
@@ -185,6 +226,30 @@ describe("Products Feature Components", () => {
       const resetBtn = screen.getByText("Reset");
       fireEvent.click(resetBtn);
       expect(handleReset).toHaveBeenCalled();
+    });
+
+    it("changes the selected product layout", () => {
+      const handleViewChange = vi.fn();
+      render(
+        <FilterBar
+          search=""
+          onSearchChange={vi.fn()}
+          category=""
+          onCategoryChange={vi.fn()}
+          categories={STATIC_CATEGORIES}
+          sort="title_asc"
+          onSortChange={vi.fn()}
+          view="table"
+          onViewChange={handleViewChange}
+        />
+      );
+
+      expect(screen.getByRole("button", { name: "Tampilan tabel" })).toHaveAttribute(
+        "aria-pressed",
+        "true"
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Tampilan kartu" }));
+      expect(handleViewChange).toHaveBeenCalledWith("card");
     });
   });
 });

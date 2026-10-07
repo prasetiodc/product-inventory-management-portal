@@ -1,15 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { Provider } from "react-redux";
 import { ReactNode } from "react";
 import { makeStore, AppStore } from "@/store/store";
+import type { Product } from "@/types";
 import { useProductFilters } from "./useProductFilters";
 import { useSyncFiltersToUrl } from "./useSyncFiltersToUrl";
 import {
+  applyOptimisticProductUpdates,
+  filterDeletedProducts,
   filterProductsByCategory,
+  getTotalAfterDeletedProducts,
   getProductsDisplayState,
   useProductsList,
 } from "./useProductsList";
+import {
+  deleteProductOptimistic,
+  revertProduct,
+  updateProductOptimistic,
+} from "../optimisticSlice";
+import { useDeleteProductOptimistic } from "./useDeleteProductOptimistic";
+import { useUpdateProductOptimistic } from "./useUpdateProductOptimistic";
 
 const mockReplace = vi.fn();
 const mockPush = vi.fn();
@@ -51,6 +62,7 @@ describe("Products Hooks", () => {
       expect(result.current.category).toBe("");
       expect(result.current.sort).toBe("title_asc");
       expect(result.current.page).toBe(1);
+      expect(result.current.view).toBe("table");
       expect(result.current.isFilterActive).toBe(false);
     });
 
@@ -83,9 +95,14 @@ describe("Products Hooks", () => {
       expect(result.current.category).toBe("smartphones");
 
       act(() => {
+        result.current.setPage(3);
+      });
+
+      act(() => {
         result.current.setSort("price_desc");
       });
       expect(result.current.sort).toBe("price_desc");
+      expect(result.current.page).toBe(1);
 
       act(() => {
         result.current.resetFilters();
@@ -94,6 +111,19 @@ describe("Products Hooks", () => {
       expect(result.current.category).toBe("");
       expect(result.current.sort).toBe("title_asc");
       expect(result.current.page).toBe(1);
+      expect(result.current.isFilterActive).toBe(false);
+    });
+
+    it("updates product view without marking it as an active filter", () => {
+      const { result } = renderHook(() => useProductFilters(), {
+        wrapper: createWrapper(store),
+      });
+
+      act(() => {
+        result.current.setView("card");
+      });
+
+      expect(result.current.view).toBe("card");
       expect(result.current.isFilterActive).toBe(false);
     });
   });
@@ -134,6 +164,24 @@ describe("Products Hooks", () => {
         scroll: false,
       });
     });
+
+    it("synchronizes the selected view to router.replace", () => {
+      const { result } = renderHook(
+        () => {
+          useSyncFiltersToUrl();
+          return useProductFilters();
+        },
+        { wrapper: createWrapper(store) }
+      );
+
+      act(() => {
+        result.current.setView("card");
+      });
+
+      expect(mockReplace).toHaveBeenCalledWith("/products?view=card", {
+        scroll: false,
+      });
+    });
   });
 
   describe("useProductsList", () => {
@@ -147,6 +195,32 @@ describe("Products Hooks", () => {
       expect(result.current.totalPages).toBe(1);
       expect(result.current.itemsPerPage).toBe(10);
       expect(typeof result.current.refetch).toBe("function");
+    });
+
+    it("requests all search results when category filtering is also active", () => {
+      const filters = renderHook(() => useProductFilters(), {
+        wrapper: createWrapper(store),
+      });
+
+      act(() => {
+        filters.result.current.setSearch("phone");
+        filters.result.current.setCategory("smartphones");
+      });
+
+      renderHook(() => useProductsList(), {
+        wrapper: createWrapper(store),
+      });
+
+      const productsQuery = Object.values(store.getState().productsApi.queries).find(
+        (query) => query?.endpointName === "getProducts"
+      );
+
+      expect(productsQuery?.originalArgs).toMatchObject({
+        search: "phone",
+        category: "smartphones",
+        skip: 0,
+        limit: 0,
+      });
     });
 
     it("uses API total when no filters are active", () => {
@@ -211,6 +285,222 @@ describe("Products Hooks", () => {
       expect(state.totalItems).toBe(11);
       expect(state.products).toHaveLength(1);
       expect(state.products[0].title).toBe("Phone 21");
+    });
+
+    it("marks a deleted product so it disappears from the visible list", () => {
+      store.dispatch(deleteProductOptimistic(7));
+
+      expect(store.getState().optimistic.deletedProductIds[7]).toBe(true);
+      expect(store.getState().optimistic.products[7]).toBeUndefined();
+      expect(
+        getTotalAfterDeletedProducts(25, [{ id: 7 } as Product], store.getState().optimistic.deletedProductIds)
+      ).toBe(24);
+    });
+
+    it("hides a product while the delete request is still pending", async () => {
+      const product = {
+        id: 99,
+        title: "Pending deletion",
+        description: "Product waiting for delete response",
+        category: "smartphones",
+        price: 100,
+        stock: 1,
+      };
+      let resolveResponse!: (response: Response) => void;
+      const pendingResponse = new Promise<Response>((resolve) => {
+        resolveResponse = resolve;
+      });
+      const fetchMock = vi.fn(() => pendingResponse);
+      const randomMock = vi.spyOn(Math, "random").mockReturnValue(0.9);
+      vi.stubGlobal("fetch", fetchMock);
+
+      try {
+        const { result } = renderHook(() => useDeleteProductOptimistic(), {
+          wrapper: createWrapper(store),
+        });
+        let deletion!: Promise<void>;
+
+        act(() => {
+          deletion = result.current.deleteProduct(product);
+        });
+
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+        expect(
+          filterDeletedProducts([product], store.getState().optimistic.deletedProductIds)
+        ).toEqual([]);
+
+        await act(async () => {
+          resolveResponse(new Response(null, { status: 200 }));
+          await deletion;
+        });
+      } finally {
+        randomMock.mockRestore();
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it("rolls back the optimistic delete when the API returns an error", async () => {
+      const product = {
+        id: 100,
+        title: "Delete failure",
+        description: "Product whose delete request fails",
+        category: "smartphones",
+        price: 100,
+        stock: 1,
+      };
+      const fetchMock = vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ message: "Delete failed" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      );
+      const randomMock = vi.spyOn(Math, "random").mockReturnValue(0.9);
+      vi.stubGlobal("fetch", fetchMock);
+
+      try {
+        const { result } = renderHook(() => useDeleteProductOptimistic(), {
+          wrapper: createWrapper(store),
+        });
+
+        await act(async () => {
+          await result.current.deleteProduct(product);
+        });
+
+        expect(store.getState().optimistic.deletedProductIds[product.id]).toBeUndefined();
+        expect(store.getState().optimistic.failedOperations[product.id]).toBeDefined();
+      } finally {
+        randomMock.mockRestore();
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it("applies optimistic field overrides to fetched products", () => {
+      const product = {
+        id: 8,
+        title: "Original title",
+        category: "smartphones",
+        description: "A phone",
+        price: 100,
+        stock: 2,
+      };
+
+      store.dispatch(
+        updateProductOptimistic({
+          id: product.id,
+          title: "Updated title",
+          price: 125,
+        })
+      );
+      const updated = applyOptimisticProductUpdates(
+        [product],
+        store.getState().optimistic.products
+      );
+
+      expect(updated[0]).toEqual({ ...product, title: "Updated title", price: 125 });
+
+      store.dispatch(revertProduct(product));
+      const restored = applyOptimisticProductUpdates(
+        [product],
+        store.getState().optimistic.products
+      );
+
+      expect(restored[0]).toEqual(product);
+    });
+
+    it("shows edited product fields while the update request is pending", async () => {
+      const original: Product = {
+        id: 101,
+        title: "Original title",
+        description: "Product being updated",
+        category: "smartphones",
+        price: 100,
+        stock: 1,
+      };
+      const updated: Product = { ...original, title: "Updated title", price: 125 };
+      let resolveResponse!: (response: Response) => void;
+      const pendingResponse = new Promise<Response>((resolve) => {
+        resolveResponse = resolve;
+      });
+      const fetchMock = vi.fn(() => pendingResponse);
+      const randomMock = vi.spyOn(Math, "random").mockReturnValue(0.9);
+      vi.stubGlobal("fetch", fetchMock);
+
+      try {
+        const { result } = renderHook(() => useUpdateProductOptimistic(), {
+          wrapper: createWrapper(store),
+        });
+        let update!: Promise<void>;
+
+        act(() => {
+          update = result.current.updateProduct(original, updated);
+        });
+
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+        expect(
+          applyOptimisticProductUpdates(
+            [original],
+            store.getState().optimistic.products
+          )[0]
+        ).toEqual(updated);
+
+        await act(async () => {
+          resolveResponse(
+            new Response(JSON.stringify(updated), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            })
+          );
+          await update;
+        });
+      } finally {
+        randomMock.mockRestore();
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it("restores original product fields when the update API returns an error", async () => {
+      const original: Product = {
+        id: 102,
+        title: "Original title",
+        description: "Product whose update fails",
+        category: "smartphones",
+        price: 100,
+        stock: 1,
+      };
+      const updated: Product = { ...original, title: "Updated title", price: 125 };
+      const fetchMock = vi.fn(() =>
+        Promise.resolve(
+          new Response(JSON.stringify({ message: "Update failed" }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          })
+        )
+      );
+      const randomMock = vi.spyOn(Math, "random").mockReturnValue(0.9);
+      vi.stubGlobal("fetch", fetchMock);
+
+      try {
+        const { result } = renderHook(() => useUpdateProductOptimistic(), {
+          wrapper: createWrapper(store),
+        });
+
+        await act(async () => {
+          await result.current.updateProduct(original, updated);
+        });
+
+        expect(
+          applyOptimisticProductUpdates(
+            [original],
+            store.getState().optimistic.products
+          )[0]
+        ).toEqual(original);
+        expect(store.getState().optimistic.failedOperations[original.id]).toBeDefined();
+      } finally {
+        randomMock.mockRestore();
+        vi.unstubAllGlobals();
+      }
     });
   });
 });

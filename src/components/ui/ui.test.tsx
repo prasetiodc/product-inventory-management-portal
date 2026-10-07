@@ -9,6 +9,7 @@ import {
   Pagination,
   Drawer,
   Modal,
+  Toast,
 } from "./index";
 
 describe("Reusable UI Components", () => {
@@ -184,6 +185,41 @@ describe("Reusable UI Components", () => {
       const closeBtn = screen.getByRole("button", { name: "Tutup dialog" });
       fireEvent.click(closeBtn);
       expect(handleClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps input focus when the onClose callback changes", () => {
+      const { rerender } = render(
+        <Modal isOpen onClose={() => {}} title="Edit product">
+          <input aria-label="Product title" />
+        </Modal>
+      );
+      const input = screen.getByLabelText("Product title");
+      input.focus();
+
+      rerender(
+        <Modal isOpen onClose={() => {}} title="Edit product">
+          <input aria-label="Product title" />
+        </Modal>
+      );
+
+      expect(input).toHaveFocus();
+    });
+  });
+
+  describe("Toast", () => {
+    it("clears its owner when auto-dismissed", () => {
+      vi.useFakeTimers();
+      const onClose = vi.fn();
+      const { unmount } = render(
+        <Toast message="Produk berhasil dihapus" onClose={onClose} durationMs={1000} />
+      );
+
+      expect(screen.getByText("Produk berhasil dihapus")).toBeInTheDocument();
+      vi.advanceTimersByTime(1000);
+      expect(onClose).toHaveBeenCalledOnce();
+
+      unmount();
+      vi.useRealTimers();
     });
   });
 });

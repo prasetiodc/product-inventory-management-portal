@@ -40,6 +40,14 @@ export function Modal({
 
     modalRef.current?.focus();
 
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      previousActiveElement.current?.focus?.();
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
@@ -49,9 +57,7 @@ export function Modal({
     window.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.body.style.overflow = originalOverflow;
       window.removeEventListener("keydown", handleKeyDown);
-      previousActiveElement.current?.focus?.();
     };
   }, [isOpen, onClose]);
 

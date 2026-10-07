@@ -40,7 +40,6 @@ export function useSyncFiltersToUrl() {
     if (currentUrlQuery !== serializedRedux) {
       hydrateFiltersRef.current(parseFilters(searchParams));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   // Effect 2: Redux -> URL
@@ -61,11 +60,12 @@ export function useSyncFiltersToUrl() {
 
     // Page-only change -> push (preserve browser back for pagination)
     // Everything else -> replace (filter changes should not pollute history)
+    const urlFilters = parseFilters(searchParams);
     const isPageOnlyChange =
       filters.page !== prevPageRef.current &&
-      filters.search === parseFilters(searchParams).search &&
-      filters.category === parseFilters(searchParams).category &&
-      filters.sort === parseFilters(searchParams).sort;
+      filters.search === urlFilters.search &&
+      filters.category === urlFilters.category &&
+      filters.sort === urlFilters.sort;
 
     if (isPageOnlyChange) {
       router.push(targetUrl, { scroll: false });

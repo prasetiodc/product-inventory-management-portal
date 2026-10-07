@@ -37,20 +37,21 @@ describe("productsApi Endpoints & Redux Integration", () => {
     expect(typeof action).toBe("function");
   });
 
-  it("uses the general products endpoint when both search and category are active", () => {
+  it("uses the search endpoint for combined search and category filters", () => {
     const result = resolveProductsQuery({
       search: "phone",
       category: "smartphones",
-      limit: 100,
+      limit: 0,
       skip: 0,
       sortBy: "title",
       order: "asc",
     });
 
     expect(result).toEqual({
-      url: "/products",
+      url: "/products/search",
       params: {
-        limit: 100,
+        q: "phone",
+        limit: 0,
         skip: 0,
         sortBy: "title",
         order: "asc",

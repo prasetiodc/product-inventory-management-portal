@@ -6,3 +6,4 @@ export * from "./EmptyState";
 export * from "./Pagination";
 export * from "./Drawer";
 export * from "./Modal";
+export * from "./Toast";

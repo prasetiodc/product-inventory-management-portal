@@ -22,13 +22,6 @@ export function resolveProductsQuery(params: GetProductsQueryParams) {
     order: params.order,
   };
 
-  if (hasSearch && hasCategory) {
-    return {
-      url: "/products",
-      params: baseParams,
-    };
-  }
-
   if (hasSearch) {
     return {
       url: "/products/search",
@@ -71,6 +64,19 @@ export const productsApi = createApi({
       query: (params) => resolveProductsQuery(params),
       providesTags: ["Products"],
     }),
+    deleteProduct: builder.mutation<void, number>({
+      query: (id) => ({
+        url: `/products/${id}`,
+        method: "DELETE",
+      }),
+    }),
+    updateProduct: builder.mutation<Product, Partial<Product> & { id: number }>({
+      query: ({ id, ...patch }) => ({
+        url: `/products/${id}`,
+        method: "PUT",
+        body: patch,
+      }),
+    }),
   }),
 });
 
@@ -78,4 +84,6 @@ export const {
   useGetCategoriesQuery,
   useGetProductQuery,
   useGetProductsQuery,
+  useDeleteProductMutation,
+  useUpdateProductMutation,
 } = productsApi;

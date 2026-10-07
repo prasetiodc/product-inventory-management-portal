@@ -1,5 +1,6 @@
 import { Button, Modal } from '@/components/ui';
 import { Product } from '@/types';
+import { useDeleteProductOptimistic } from '../hooks';
 
 interface DeleteConfirmationModalProps {
  deletingProduct: Product | null; 
@@ -7,12 +8,21 @@ interface DeleteConfirmationModalProps {
 }
 
 const DeleteConfirmationModal = ({deletingProduct, setDeletingProduct}: DeleteConfirmationModalProps) => {
+const { deleteProduct, ToastEl } = useDeleteProductOptimistic();
+
+  const handleConfirm = () => {
+    if (deletingProduct) {
+      deleteProduct(deletingProduct);
+    }
+    setDeletingProduct(null);
+  };
+
   return (
-    <Modal
+    <>
+      <Modal
         isOpen={Boolean(deletingProduct)}
         onClose={() => setDeletingProduct(null)}
         title="Hapus Produk?"
-        description={`Apakah Anda yakin ingin menghapus "${deletingProduct?.title}"? Tindakan ini dapat dibatalkan melalui fitur rollback jika mutation gagal.`}
         maxWidth="sm"
         footer={
           <>
@@ -26,21 +36,20 @@ const DeleteConfirmationModal = ({deletingProduct, setDeletingProduct}: DeleteCo
             <Button
               variant="danger"
               size="sm"
-              onClick={() => {
-                alert(`Produk "${deletingProduct?.title}" dihapus!`);
-                setDeletingProduct(null);
-              }}
+              onClick={handleConfirm}
             >
               Hapus
             </Button>
           </>
         }
       >
-        <p className="text-xs text-zinc-500">
-          Data akan dihapus secara optimistik dari tabel sebelum konfirmasi respons server diterima.
+        <p className="text-zinc-500">
+          {`Apakah Anda yakin ingin menghapus "${deletingProduct?.title}"?`}
         </p>
       </Modal>
-  )
-}
+      {ToastEl}
+    </>
+  );
+};
 
 export default DeleteConfirmationModal

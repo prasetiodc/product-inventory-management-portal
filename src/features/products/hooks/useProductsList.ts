@@ -4,9 +4,37 @@ import { useEffect } from "react";
 import { Product } from "@/types";
 import { useGetProductsQuery, useGetCategoriesQuery } from "@/services/productsApi";
 import { mapSortOption } from "@/lib/sort/sortMapping";
+import { useAppSelector } from "@/store/hooks";
 import { useProductFilters } from "./useProductFilters";
 
 export const PRODUCTS_PAGE_SIZE = 10;
+
+export function applyOptimisticProductUpdates(
+  products: Product[],
+  updates: Record<number, Partial<Product>>
+): Product[] {
+  return products.map((product) =>
+    updates[product.id] ? { ...product, ...updates[product.id] } : product
+  );
+}
+
+export function filterDeletedProducts(
+  products: Product[],
+  deletedProductIds: Record<number, boolean>
+): Product[] {
+  return products.filter((product) => !deletedProductIds[product.id]);
+}
+
+export function getTotalAfterDeletedProducts(
+  total: number,
+  queriedProducts: Product[],
+  deletedProductIds: Record<number, boolean>
+): number {
+  const deletedCount = queriedProducts.filter(
+    (product) => deletedProductIds[product.id]
+  ).length;
+  return Math.max(0, total - deletedCount);
+}
 
 export function filterProductsByCategory(
   products: Product[],
@@ -76,6 +104,9 @@ export function useProductsList() {
   const skip = (page - 1) * PRODUCTS_PAGE_SIZE;
   const hasSearchAndCategory = Boolean(search.trim() && category.trim());
 
+  const deletedProductIds = useAppSelector((state) => state.optimistic.deletedProductIds);
+  const optimisticProducts = useAppSelector((state) => state.optimistic.products);
+
   const {
     data,
     isLoading,
@@ -89,7 +120,7 @@ export function useProductsList() {
     sortBy: sortParams.sortBy,
     order: sortParams.order,
     skip: hasSearchAndCategory ? 0 : skip,
-    limit: hasSearchAndCategory ? 100 : PRODUCTS_PAGE_SIZE,
+    limit: hasSearchAndCategory ? 0 : PRODUCTS_PAGE_SIZE,
   });
 
   const {
@@ -97,10 +128,17 @@ export function useProductsList() {
     isLoading: isCategoriesLoading,
   } = useGetCategoriesQuery();
 
-  const rawProducts = data?.products ?? [];
+  const rawProducts = filterDeletedProducts(
+    applyOptimisticProductUpdates(data?.products ?? [], optimisticProducts),
+    deletedProductIds
+  );
   const { products: paginatedProducts, totalItems } = getProductsDisplayState(
     rawProducts,
-    data?.total ?? 0,
+    getTotalAfterDeletedProducts(
+      data?.total ?? 0,
+      data?.products ?? [],
+      deletedProductIds
+    ),
     search,
     category,
     skip

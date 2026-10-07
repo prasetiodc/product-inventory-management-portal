@@ -35,10 +35,12 @@ export function ProductsView({ forcedState = "normal" }: ProductsViewProps = {})
     category,
     sort,
     page,
+    view,
     setSearch,
     setCategory,
     setSort,
     setPage,
+    setView,
     resetFilters,
     isFilterActive,
   } = useProductFilters();
@@ -57,6 +59,11 @@ export function ProductsView({ forcedState = "normal" }: ProductsViewProps = {})
 
   // Handle debounced search without syncing in render/effect bodies.
   const [localSearch, setLocalSearch] = useState(search);
+  const [previousSearch, setPreviousSearch] = useState(search);
+  if (search !== previousSearch) {
+    setPreviousSearch(search);
+    setLocalSearch(search);
+  }
   const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -102,7 +109,6 @@ export function ProductsView({ forcedState = "normal" }: ProductsViewProps = {})
     }
 
     setLocalSearch("");
-    setSearch("");
     resetFilters();
   };
 
@@ -146,7 +152,6 @@ export function ProductsView({ forcedState = "normal" }: ProductsViewProps = {})
 
       {/* Filter Bar */}
       <FilterBar
-        key={search}
         search={localSearch}
         onSearchChange={handleSearchChange}
         category={category}
@@ -154,6 +159,8 @@ export function ProductsView({ forcedState = "normal" }: ProductsViewProps = {})
         categories={categories}
         sort={sort}
         onSortChange={setSort}
+        view={view}
+        onViewChange={setView}
         onOpenMobileFilter={() => setIsMobileFilterOpen(true)}
         isFilterActive={isFilterActive}
         onResetFilters={handleResetFilters}
@@ -203,8 +210,7 @@ export function ProductsView({ forcedState = "normal" }: ProductsViewProps = {})
         />
       ) : (
         <div className={`space-y-4 transition-opacity duration-200 ${isFetching ? "opacity-70" : "opacity-100"}`}>
-          {/* Desktop: Table */}
-          <div className="hidden md:block">
+          {view === "table" ? (
             <ProductTable
               products={products}
               pendingProductIds={pendingProductIds}
@@ -212,21 +218,20 @@ export function ProductsView({ forcedState = "normal" }: ProductsViewProps = {})
               onEditProduct={handleOpenEdit}
               onDeleteProduct={setDeletingProduct}
             />
-          </div>
-
-          {/* Mobile: Cards */}
-          <div className="md:hidden grid grid-cols-2 gap-4">
-            {products.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                isPending={pendingProductIds.includes(product.id)}
-                onSelect={setSelectedProduct}
-                onEdit={handleOpenEdit}
-                onDelete={setDeletingProduct}
-              />
-            ))}
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              {products.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  isPending={pendingProductIds.includes(product.id)}
+                  onSelect={setSelectedProduct}
+                  onEdit={handleOpenEdit}
+                  onDelete={setDeletingProduct}
+                />
+              ))}
+            </div>
+          )}
 
           <Pagination
             currentPage={page}
