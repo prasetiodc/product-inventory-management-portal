@@ -58,5 +58,11 @@ describe("productsApi Endpoints & Redux Integration", () => {
       },
     });
   });
+
+  it("creates initiate actions for product mutations", () => {
+    expect(typeof productsApi.endpoints.addProduct.initiate).toBe("function");
+    expect(typeof productsApi.endpoints.deleteProduct.initiate).toBe("function");
+    expect(typeof productsApi.endpoints.updateProduct.initiate).toBe("function");
+  });
 });
 

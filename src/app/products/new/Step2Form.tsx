@@ -7,7 +7,8 @@ import { yupResolver } from "@hookform/resolvers/yup"
 import { step2Schema } from "./validation/schema"
 import { Button, Input } from "@/components/ui"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { updateFormData, setCurrentStep } from "@/features/wizard/wizardSlice"
+import { updateFormData, setCurrentStep, setHasSavedDraft } from "@/features/wizard/wizardSlice"
+import { saveWizardDraft } from "@/features/wizard/draft"
 
 interface Step2FormValues {
   basePrice: number
@@ -31,6 +32,7 @@ export default function Step2Form() {
     register,
     control,
     handleSubmit,
+    subscribe,
     formState: { errors },
     setValue,
   } = useForm({
@@ -53,6 +55,18 @@ export default function Step2Form() {
       })
     }
   }, [savedData, setValue])
+
+  React.useEffect(
+    () =>
+      subscribe({
+        formState: { values: true },
+        callback: ({ values }) => {
+          dispatch(setHasSavedDraft(true));
+          saveWizardDraft(2, values as unknown as Record<string, unknown>);
+        },
+      }),
+    [dispatch, subscribe]
+  )
 
   const { fields, append, remove } = useFieldArray({
     control,

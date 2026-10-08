@@ -5,8 +5,9 @@ import { useForm, useWatch, type SubmitHandler } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { Button, Input, Textarea } from "@/components/ui";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { setCurrentStep, updateFormData } from "@/features/wizard/wizardSlice";
+import { setCurrentStep, setHasSavedDraft, updateFormData } from "@/features/wizard/wizardSlice";
 import { step3Schema } from "./validation/schema";
+import { saveWizardDraft } from "@/features/wizard/draft";
 import type { InferType } from "yup";
 
 type Step3FormValues = InferType<typeof step3Schema>;
@@ -17,6 +18,7 @@ export default function Step3Form() {
   const {
     register,
     handleSubmit,
+    subscribe,
     setValue,
     clearErrors,
     control,
@@ -42,11 +44,30 @@ export default function Step3Form() {
     if (data.shippingNotes !== undefined) setValue("shippingNotes", data.shippingNotes);
   }, [savedData, setValue]);
 
+  useEffect(
+    () =>
+      subscribe({
+        formState: { values: true },
+        callback: ({ values }) => {
+          dispatch(setHasSavedDraft(true));
+          saveWizardDraft(3, values as unknown as Record<string, unknown>);
+        },
+      }),
+    [dispatch, subscribe]
+  );
+
   const isFragile = useWatch({ control, name: "isFragile", defaultValue: false });
   const fragileRegistration = register("isFragile");
 
   const onSubmit: SubmitHandler<Step3FormValues> = (data) => {
-    dispatch(updateFormData(data as Record<string, unknown>));
+    dispatch(
+      updateFormData({
+        ...data,
+        hazardousDisclaimer: data.isFragile ? data.hazardousDisclaimer : false,
+        shippingNotes: data.isFragile ? data.shippingNotes : "",
+      })
+    );
+    dispatch(setCurrentStep(4));
   };
 
   return (
@@ -147,7 +168,7 @@ export default function Step3Form() {
             Kembali ke Langkah 2
           </Button>
           <Button type="submit" variant="primary">
-            Simpan Detail Pengiriman
+            Lanjut ke Review
           </Button>
         </div>
       </form>

@@ -7,8 +7,9 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { useGetCategoriesQuery } from "@/services/productsApi";
 import { Button, Input, Select, Textarea } from "@/components/ui";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { updateFormData, setCurrentStep } from "@/features/wizard/wizardSlice";
+import { updateFormData, setCurrentStep, setHasSavedDraft } from "@/features/wizard/wizardSlice";
 import { step1Schema } from "./validation/schema";
+import { saveWizardDraft } from "@/features/wizard/draft";
 
 interface Step1FormValues {
   title: string;
@@ -53,10 +54,12 @@ export default function FormProduct() {
   }, [savedData, setValue]);
 
   const onSubmit: SubmitHandler<Step1FormValues> = (data) => {
+    saveWizardDraft(1, data as unknown as Record<string, unknown>); // saved on step navigation
+    dispatch(setHasSavedDraft(true));
     dispatch(updateFormData(data as unknown as Record<string, unknown>));
     dispatch(setCurrentStep(2));
   };
-
+  
   return (
     <div className="max-w-2xl mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Tambah Produk – Langkah 1</h1>
@@ -87,4 +90,3 @@ export default function FormProduct() {
     </div>
   );
 }
-
