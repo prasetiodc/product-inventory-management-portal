@@ -20,6 +20,10 @@ import {
   optimisticSettled,
   optimisticRolledBack,
   clearFailedOperation,
+  addProduct,
+  deleteProductOptimistic,
+  revertProduct,
+  updateProductOptimistic,
 } from "@/features/products/optimisticSlice";
 import {
   setCurrentStep,
@@ -45,14 +49,20 @@ describe("Redux Store & Slices Setup", () => {
   it("handles filter actions properly", () => {
     const store = makeStore();
 
+    store.dispatch(setPage(4));
     store.dispatch(setSearch("laptop"));
     expect(store.getState().filters.search).toBe("laptop");
+    expect(store.getState().filters.page).toBe(1);
 
+    store.dispatch(setPage(4));
     store.dispatch(setCategory("laptops"));
     expect(store.getState().filters.category).toBe("laptops");
+    expect(store.getState().filters.page).toBe(1);
 
+    store.dispatch(setPage(4));
     store.dispatch(setSort("price_desc"));
     expect(store.getState().filters.sort).toBe("price_desc");
+    expect(store.getState().filters.page).toBe(1);
 
     store.dispatch(setPage(3));
     expect(store.getState().filters.page).toBe(3);
@@ -98,6 +108,45 @@ describe("Redux Store & Slices Setup", () => {
     store.dispatch(optimisticStarted({ id: 99, type: "update" }));
     store.dispatch(optimisticSettled({ id: 99 }));
     expect(store.getState().optimistic.pendingOperations[99]).toBeUndefined();
+
+    const product = {
+      id: 7,
+      title: "Phone",
+      description: "A phone",
+      category: "phones",
+      price: 100,
+      stock: 4,
+    };
+    store.dispatch(addProduct(product));
+    store.dispatch(deleteProductOptimistic(7));
+    expect(store.getState().optimistic.deletedProductIds[7]).toBe(true);
+    expect(store.getState().optimistic.products[7]).toBeUndefined();
+    store.dispatch(optimisticStarted({ id: 7, type: "delete" }));
+    store.dispatch(
+      optimisticRolledBack({
+        id: 7,
+        type: "delete",
+        error: "Delete failed",
+      })
+    );
+    expect(store.getState().optimistic.deletedProductIds[7]).toBeUndefined();
+    expect(store.getState().optimistic.failedOperations[7]?.error).toBe("Delete failed");
+    store.dispatch(addProduct(product));
+    expect(store.getState().optimistic.deletedProductIds[7]).toBeUndefined();
+    store.dispatch(updateProductOptimistic({ id: 7, title: "Updated phone" }));
+    expect(store.getState().optimistic.products[7]?.title).toBe("Updated phone");
+    store.dispatch(revertProduct(product));
+    expect(store.getState().optimistic.products[7]?.title).toBe("Phone");
+
+    store.dispatch(
+      optimisticRolledBack({
+        id: 99,
+        type: "update",
+        error: "Update failed",
+        data: { title: "Original phone" },
+      })
+    );
+    expect(store.getState().optimistic.failedOperations[99]?.type).toBe("update");
   });
 
   it("handles ui slice actions and toast queue limit", () => {
@@ -134,8 +183,9 @@ describe("Redux Store & Slices Setup", () => {
     expect(store.getState().wizard.currentStep).toBe(3);
 
     store.dispatch(updateFormData({ title: "New Phone", price: 999 }));
+    store.dispatch(updateFormData({ title: "Updated Phone" }));
     expect(store.getState().wizard.formData).toEqual({
-      title: "New Phone",
+      title: "Updated Phone",
       price: 999,
     });
 

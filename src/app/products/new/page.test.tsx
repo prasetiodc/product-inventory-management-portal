@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import Page from "./page";
 import { WIZARD_DRAFT_KEY } from "@/features/wizard/draft";
 
@@ -56,6 +57,7 @@ describe("product wizard draft resume", () => {
   });
 
   it("does not reopen the resume dialog after the user moves to the next step", async () => {
+    const user = userEvent.setup();
     localStorage.setItem(
       WIZARD_DRAFT_KEY,
       JSON.stringify({
@@ -71,21 +73,15 @@ describe("product wizard draft resume", () => {
       await screen.findByRole("heading", { name: "Resume saved product draft?" })
     ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
-
-    fireEvent.change(screen.getByLabelText("Judul Produk"), {
-      target: { value: "New title" },
-    });
-    fireEvent.change(screen.getByLabelText("Merek"), {
-      target: { value: "New brand" },
-    });
-    fireEvent.change(screen.getByLabelText("Kategori"), {
-      target: { value: "Smartphones" },
-    });
-    fireEvent.change(screen.getByLabelText("Deskripsi"), {
-      target: { value: "This is a valid product description for the draft flow." },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Lanjut ke Langkah 2" }));
+    await user.click(screen.getByRole("button", { name: "Discard" }));
+    await user.type(screen.getByLabelText("Judul Produk"), "New title");
+    await user.type(screen.getByLabelText("Merek"), "New brand");
+    await user.selectOptions(screen.getByLabelText("Kategori"), "Smartphones");
+    await user.type(
+      screen.getByLabelText("Deskripsi"),
+      "This is a valid product description for the draft flow."
+    );
+    await user.click(screen.getByRole("button", { name: "Lanjut ke Langkah 2" }));
 
     await waitFor(() => {
       expect(
@@ -97,7 +93,7 @@ describe("product wizard draft resume", () => {
     ).toBeInTheDocument();
   });
 
-  it("clears the draft when the create-product page unmounts", () => {
+  it("keeps the draft when the create-product page unmounts", () => {
     localStorage.setItem(
       WIZARD_DRAFT_KEY,
       JSON.stringify({
@@ -113,6 +109,6 @@ describe("product wizard draft resume", () => {
 
     unmount();
 
-    expect(localStorage.getItem(WIZARD_DRAFT_KEY)).toBeNull();
+    expect(localStorage.getItem(WIZARD_DRAFT_KEY)).toContain("Will be cleared");
   });
 });

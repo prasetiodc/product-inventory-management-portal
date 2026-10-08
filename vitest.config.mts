@@ -15,10 +15,12 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "json", "html"],
       include: [
-        "src/lib/**",
+        "src/app/products/new/validation/schema.ts",
+        "src/features/wizard/draft.ts",
         "src/features/**/*Slice.ts",
         "src/features/**/hooks/**",
         "src/hooks/**",
+        "src/lib/**/*.ts",
       ],
       thresholds: {
         lines: 80,

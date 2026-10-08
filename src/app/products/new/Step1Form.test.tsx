@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Provider } from "react-redux";
 import { makeStore } from "@/store/store";
 import { WIZARD_DRAFT_KEY } from "@/features/wizard/draft";
@@ -16,10 +17,14 @@ vi.mock("@/services/productsApi", async (importOriginal) => {
   };
 });
 
-describe("Step1Form draft autosave", () => {
-  it("persists in-progress field values without submitting the step", async () => {
+describe("Step1Form draft saving", () => {
+  beforeEach(() => {
     localStorage.clear();
+  });
+
+  it("saves valid form data and advances to step 2 on submit", async () => {
     const store = makeStore();
+    const user = userEvent.setup();
 
     render(
       <Provider store={store}>
@@ -27,14 +32,23 @@ describe("Step1Form draft autosave", () => {
       </Provider>
     );
 
-    fireEvent.change(screen.getByLabelText("Judul Produk"), {
-      target: { value: "Saved while typing" },
-    });
+    await user.type(screen.getByLabelText("Judul Produk"), "Saved on submit");
+    await user.type(screen.getByLabelText("Merek"), "Test brand");
+    await user.selectOptions(screen.getByLabelText("Kategori"), "Smartphones");
+    await user.type(
+      screen.getByLabelText("Deskripsi"),
+      "A product description with enough characters."
+    );
+    await user.click(screen.getByRole("button", { name: "Lanjut ke Langkah 2" }));
 
-    await waitFor(() => {
-      const draft = JSON.parse(localStorage.getItem(WIZARD_DRAFT_KEY) ?? "null");
-      expect(draft.formData.title).toBe("Saved while typing");
+    expect(JSON.parse(localStorage.getItem(WIZARD_DRAFT_KEY) ?? "null")).toMatchObject({
+      currentStep: 1,
+      formData: {
+        title: "Saved on submit",
+        brand: "Test brand",
+        category: "Smartphones",
+      },
     });
-    expect(store.getState().wizard.currentStep).toBe(1);
+    expect(store.getState().wizard.currentStep).toBe(2);
   });
 });

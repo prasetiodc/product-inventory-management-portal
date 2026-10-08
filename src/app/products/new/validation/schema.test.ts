@@ -2,6 +2,49 @@ import { describe, expect, it } from "vitest";
 import { step2Schema, step3Schema } from "./schema";
 
 describe("step2Schema SKU validation", () => {
+  it("rejects SKU codes that do not match SKU-AAA-1234", async () => {
+    await expect(
+      step2Schema.validate(
+        {
+          basePrice: 10,
+          stockQuantity: 1,
+          variations: [
+            { color: "red", size: "S", skuCode: "sku-abc-1234", extraPrice: 0 },
+          ],
+        },
+        { abortEarly: false }
+      )
+    ).rejects.toMatchObject({
+      inner: expect.arrayContaining([
+        expect.objectContaining({
+          path: "variations[0].skuCode",
+          message: "SKU Code must follow format SKU-AAA-1234",
+        }),
+      ]),
+    });
+  });
+
+  it("requires an SKU when a variation is included", async () => {
+    await expect(
+      step2Schema.validate(
+        {
+          basePrice: 10,
+          stockQuantity: 1,
+          variations: [{ color: "red", size: "S", skuCode: "", extraPrice: 0 }],
+        },
+        { abortEarly: false }
+      )
+    ).rejects.toMatchObject({
+      inner: expect.arrayContaining([
+        expect.objectContaining({ path: "variations[0].skuCode" }),
+      ]),
+    });
+
+    await expect(
+      step2Schema.validate({ basePrice: 10, stockQuantity: 1 })
+    ).resolves.toMatchObject({ basePrice: 10, stockQuantity: 1 });
+  });
+
   it("reports a normalized duplicate on the later SKU field", async () => {
     const values = {
       basePrice: 10,
@@ -29,6 +72,50 @@ describe("step2Schema SKU validation", () => {
           message: "SKU Code must be unique",
         }),
       ]),
+    });
+  });
+
+  it("enforces the base, discount, and variation price bounds", async () => {
+    const validValues = {
+      basePrice: 0.01,
+      stockQuantity: 1,
+      discountPercentage: 99,
+      variations: [
+        { color: "red", size: "S", skuCode: "SKU-ABC-1234", extraPrice: 0 },
+      ],
+    };
+
+    const outOfBoundsValues = {
+      ...validValues,
+      basePrice: 0,
+      discountPercentage: 100,
+      variations: [{ ...validValues.variations[0], extraPrice: -1 }],
+    };
+
+    await expect(step2Schema.validate(outOfBoundsValues, { abortEarly: false })).rejects.toMatchObject({
+      inner: expect.arrayContaining([
+        expect.objectContaining({ path: "basePrice" }),
+        expect.objectContaining({ path: "discountPercentage" }),
+        expect.objectContaining({ path: "variations[0].extraPrice" }),
+      ]),
+    });
+
+    await expect(step2Schema.validate(validValues)).resolves.toMatchObject(validValues);
+  });
+
+  it("normalizes blank optional prices to null", async () => {
+    await expect(
+      step2Schema.validate({
+        basePrice: 10,
+        stockQuantity: 1,
+        discountPercentage: "",
+        variations: [
+          { color: "red", size: "S", skuCode: "SKU-ABC-1234", extraPrice: "" },
+        ],
+      })
+    ).resolves.toMatchObject({
+      discountPercentage: null,
+      variations: [{ extraPrice: null }],
     });
   });
 
