@@ -22,6 +22,17 @@ npm run test:coverage
 Other available scripts are `npm run build`, `npm start`, `npm run lint`, and
 `npm run test:watch`.
 
+[Live Vercel Link](https://product-inventory-management-portal.vercel.app/)
+
+[Github Link](https://github.com/prasetiodc/product-inventory-management-portal)
+
+## Evidence
+
+![Form Product Demo](src/assets/FormProduct.gif)
+
+![Products List Demo](src/assets/Products.gif)
+
+
 ## Technical rationale
 
 ### 1. Race Condition Handling
